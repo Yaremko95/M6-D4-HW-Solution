@@ -1,7 +1,6 @@
-const express = require("express");
-const Product = require("../../db").Product;
-const Category = require("../../db").Category;
-const { Op } = require("sequelize");
+import express from "express";
+import { Product, Review } from "../../db/models/index.js";
+
 const router = express.Router();
 
 router
@@ -9,19 +8,23 @@ router
   .get(async (req, res, next) => {
     try {
       const data = await Product.findAll({
-        include: {
-          model: Category,
-          where: req.query.category
-            ? {
-                name: { [Op.iLike]: "%" + req.query.category + "%" },
-              }
-            : {},
+        include: Review,
+        where: {
+          ...(req.query.search && {
+            [Op.or]: [
+              { name: { [Op.iLike]: `%${req.query.search}%` } },
+              { description: { [Op.iLike]: `%${req.query.search}%` } },
+            ],
+          }),
+          ...(req.query.price && {
+            price: { [Op.between]: req.query.price.split(",") },
+          }),
+
+          ...(req.query.category && {
+            category: { [Op.in]: req.query.category.split(",") },
+          }),
         },
-        where: req.query.name
-          ? { name: { [Op.iLike]: "%" + req.query.name + "%" } }
-          : {},
-        offset: parseInt(req.query.offset) | 0,
-        limit: parseInt(req.query.limit) | 10,
+        ...(req.query.order && { order: [req.query.order.split(",")] }),
       });
       res.send(data);
     } catch (e) {
@@ -43,7 +46,12 @@ router
   .route("/:id")
   .get(async (req, res, next) => {
     try {
-      const data = await Product.findByPk(req.params.id);
+      const data = await Product.findOne({
+        where: {
+          id: req.params.id,
+        },
+        include: Review,
+      });
       res.send(data);
     } catch (e) {
       console.log(e);
@@ -77,4 +85,4 @@ router
     }
   });
 
-module.exports = router;
+export default router;

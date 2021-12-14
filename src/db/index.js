@@ -1,37 +1,24 @@
-const { Sequelize, DataTypes } = require("sequelize");
-const User = require("./user");
-const Category = require("./category");
-const Product = require("./product");
-const Cart = require("./cart");
-const sequelize = new Sequelize(
-  process.env.PGDATABASE,
-  process.env.PGUSER,
-  process.env.PGPASSWORD,
-  {
-    host: process.env.PGHOST,
-    dialect: "postgres",
-  }
-);
+import { Sequelize } from "sequelize";
 
-const models = {
-  User: User(sequelize, DataTypes),
-  Category: Category(sequelize, DataTypes),
-  Product: Product(sequelize, DataTypes),
-  Cart: Cart(sequelize, DataTypes),
+const { DB_URL } = process.env;
+const sequelize = new Sequelize(DB_URL);
+
+export const testDB = async () => {
+  try {
+    await sequelize.authenticate();
+    console.log("DB is authenticated");
+  } catch (error) {
+    console.log("Failed to authenticate DB ", error);
+  }
 };
 
-Object.keys(models).forEach((modelName) => {
-  if ("associate" in models[modelName]) {
-    models[modelName].associate(models);
+export const connectDB = async () => {
+  try {
+    await sequelize.sync();
+    console.log("DB is synced");
+  } catch (error) {
+    console.log("Failed to sync DB", error);
   }
-});
+};
 
-models.sequelize = sequelize;
-models.Sequelize = Sequelize;
-
-sequelize
-  .authenticate()
-  .then(() => console.log("Connection established"))
-  .catch((e) => console.log("Connection failed ", e));
-
-module.exports = models;
+export default sequelize;
