@@ -1,6 +1,7 @@
 import express from "express";
-import { Product, Review } from "../../db/models/index.js";
-
+import { Product } from "../../db/models/index.js";
+import sequelize from "sequelize";
+const { Op } = sequelize;
 const router = express.Router();
 
 router
@@ -9,21 +10,30 @@ router
     try {
       const data = await Product.findAll({
         include: Review,
+
         where: {
           ...(req.query.search && {
             [Op.or]: [
-              { name: { [Op.iLike]: `%${req.query.search}%` } },
-              { description: { [Op.iLike]: `%${req.query.search}%` } },
+              {
+                name: {
+                  [Op.iLike]: `%${req.query.search}%`,
+                },
+              },
+              {
+                description: {
+                  [Op.iLike]: `%${req.query.search}%`,
+                },
+              },
             ],
           }),
-          ...(req.query.price && {
-            price: { [Op.between]: req.query.price.split(",") },
-          }),
 
-          ...(req.query.category && {
-            category: { [Op.in]: req.query.category.split(",") },
+          ...(req.query.price && {
+            price: {
+              [Op.between]: req.query.price.split(","),
+            },
           }),
         },
+
         ...(req.query.order && { order: [req.query.order.split(",")] }),
       });
       res.send(data);
@@ -34,8 +44,8 @@ router
   })
   .post(async (req, res, next) => {
     try {
-      const newElement = await Product.create(req.body);
-      res.send(newElement);
+      const data = await Product.create(req.body);
+      res.send(data);
     } catch (e) {
       console.log(e);
       next(e);
@@ -47,10 +57,10 @@ router
   .get(async (req, res, next) => {
     try {
       const data = await Product.findOne({
+        include: Review,
         where: {
           id: req.params.id,
         },
-        include: Review,
       });
       res.send(data);
     } catch (e) {
@@ -60,14 +70,14 @@ router
   })
   .put(async (req, res, next) => {
     try {
-      const updatedData = await Product.update(req.body, {
-        returning: true,
-        plain: true,
+      const data = await Product.update(req.body, {
         where: {
           id: req.params.id,
         },
+        returning: true,
       });
-      res.send(updatedData[1]);
+
+      res.send(data[1][0]);
     } catch (e) {
       console.log(e);
       next(e);
@@ -75,10 +85,13 @@ router
   })
   .delete(async (req, res, next) => {
     try {
-      Product.destroy({ where: { id: req.params.id } }).then((rowsDeleted) => {
-        if (rowsDeleted > 0) res.send("Deleted");
-        else res.send("no match");
+      const data = await Product.destroy({
+        where: {
+          id: req.params.id,
+        },
       });
+
+      res.send({ rows: data });
     } catch (e) {
       console.log(e);
       next(e);
