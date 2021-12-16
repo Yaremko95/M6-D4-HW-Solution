@@ -1,6 +1,7 @@
 import express from "express";
-import { Product } from "../../db/models/index.js";
+import { Product, ProductCategory, User } from "../../db/models/index.js";
 import sequelize from "sequelize";
+
 const { Op } = sequelize;
 const router = express.Router();
 
@@ -35,6 +36,10 @@ router
         },
 
         ...(req.query.order && { order: [req.query.order.split(",")] }),
+
+        //Pagination
+        limit: req.query.limit, // number of records per page
+        offset: parseInt(req.query.limit * req.query.page), // number f records skipped from 0
       });
       res.send(data);
     } catch (e) {
@@ -44,8 +49,21 @@ router
   })
   .post(async (req, res, next) => {
     try {
-      const data = await Product.create(req.body);
-      res.send(data);
+      console.log(req.body);
+
+      const { categoryId, ...rest } = req.body;
+
+      const product = await Product.create(rest);
+
+      if (product) {
+        const dataToInsert = categoryId.map((id) => ({
+          categoryId: id,
+          productId: product.id,
+        }));
+
+        const data = await ProductCategory.bulkCreate(dataToInsert);
+      }
+      res.send("ok");
     } catch (e) {
       console.log(e);
       next(e);
@@ -57,7 +75,7 @@ router
   .get(async (req, res, next) => {
     try {
       const data = await Product.findOne({
-        include: Review,
+        include: [{ model: Review, include: User }, Category],
         where: {
           id: req.params.id,
         },
